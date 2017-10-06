@@ -2,25 +2,16 @@ SETUP = ocaml setup.ml
 
 all: build
 
-.PHONY: build duet ark apak patools test cca
+.PHONY: ark simsat
 
 build: setup.ml setup.data
 	$(SETUP) -build
 
-duet: setup.ml setup.data duet/config.ml
-	ocamlbuild duet/duet.native -tag debug
-
 ark: setup.ml setup.data
 	ocamlbuild ark/test_ark.native ark/arkTop.native -tag debug
 
-apak: setup.ml setup.data
-	ocamlbuild apak/test_apak.native -tag debug
-
 patools: setup.ml setup.data
-	ocamlbuild patools/patools.native -tag debug
-
-cca: setup.ml setup.data
-	ocamlbuild cca/cca.native -tag debug
+	ocamlbuild simsat/simsat.native -tag debug
 
 setup.ml: _oasis
 	oasis setup

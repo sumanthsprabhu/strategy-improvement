@@ -1,6 +1,11 @@
-Duet
+SimSat
 ====
-Duet is a static analysis tool designed for analyzing concurrent programs.
+SimSat is an tool for synthesizing winning strategies to logical games.
+
+The strategy synthesis algorithms are implemented in
+[duet](https://github.com/zkincaid/duet).  This repository contains the ark
+library of duet along with a command line interface to the strategy synthesis
+algorithms.
 
 Building
 ========
@@ -23,81 +28,65 @@ On MacOS, you can install these packages (except Java and MathSAT) with:
  brew install opam gmp mpfr
 ```
 
-Next, add the [sv-opam](https://github.com/zkincaid/sv-opam) OPAM repository, and install the rest of duet's dependencies.  These are built from source, so grab a coffee &mdash; this may take a long time.
+Next, add the [sv-opam](https://github.com/zkincaid/sv-opam) OPAM repository, and install the rest of SimSat's dependencies.  These are built from source, so grab a coffee &mdash; this may take a long time.
 ```
  opam remote add sv git://github.com/zkincaid/sv-opam.git
- opam install ocamlgraph batteries cil oasis ppx_deriving Z3 apron ounit menhir mathsat OCRS
+ opam install ocamlgraph batteries oasis ppx_deriving Z3 apron ounit menhir mathsat OCRS
 ```
 
-### Building Duet
+### Building SimSat
 
-After Duet's dependencies are installed, it can be built as follows:
-```
- ./configure
- make
-```
+After SimSat's dependencies are installed, it can be built using `make`.
 
-Duet's makefile has the following targets:
- + `make`: Build duet
- + `make ark`: Build the ark library and test suite
- + `make apak`: Build the apak library and test suite
- + `make doc`: Build documentation
- + `make test`: Run test suite
+Satisfiability
+==============
 
-Running Duet
-============
+SimSat is a satisfiability testing procedure for quantified formulas in linear
+integer arithmetic and linear rational arithmetic.  It accepts input in
+SMT-LIB2 format, and can be executed as follows:
 
-There are three main program analyses implemented in Duet:
+    simsat.native -sat FILE.smt2
 
-* Data flow graphs: `duet.native -coarsen FILE`
-* Proof spaces: `duet.native -proofspace FILE`
-* Compositional recurrence analysis: `duet.native -cra FILE`
-
-Duet supports two file types (and guesses which to use by file extension): C programs (.c), Boolean programs (.bp).
-
-By default, Duet checks user-defined assertions, which are specified by the built-in function `__VERIFIER_assert`. Alternatively, it can also instrument assertions as follows:
-
-    duet.native -check-array-bounds -check-null-deref -coarsen FILE
+A quantified formula can be viewed as a game between two players -- SAT and
+UNSAT -- whose goals are to prove that formula is satisfiable / unsatisfiable,
+respectively.  The SimSat algorithm is based on synthesizing a winning
+strategy for one of the two players by mutually improving strategies for both.
+The procedure is described in
+* Azadeh Farzan, Zachary Kincaid: [Linear Arithmetic Satisfiability via Strategy Improvement](http://www.cs.princeton.edu/~zkincaid/pub/ijcai16.pdf).  IJCAI 2016.
 
 
-### Data flow graphs
+Synthesis (SimSynth)
+====================
 
-The `-coarsen` flag implements an invariant generation procedure for multi-threaded programs with an unbounded number of threads. The analysis is described in
-* Azadeh Farzan and Zachary Kincaid: [Verification of Parameterized Concurrent Programs By Modular Reasoning about Data and Control](http://www.cs.princeton.edu/~zkincaid/pub/popl12.pdf).  POPL 2012.
+SimSat is also capable of synthesizing winning strategies to satisfiability
+games as well as reachability games.  It accepts satisfiability in SMT-LIB2
+format (with a mandatory .smt2 file extension), and reachability games in a
+format that will be described below (with a mandatory file .rg extension).  To
+synthesize a strategy, execute simsat as follows:
 
-### Proof spaces
+    simsat.native -sat FILE.[smt2|rg]
 
-The `-proofspace` flag implements a software model checking procedure for multi-threaded programs with an unbounded number of threads.  The procedure is described in
-* Azadeh Farzan, Zachary Kincaid, Andreas Podelski: [Proof Spaces for Unbounded Parallelism](http://www.cs.princeton.edu/~zkincaid/pub/popl15.pdf).  POPL 2015.
+Syntax of reachability games:
+-----------------------------
+```vars: <var-list>     # comma-separated list of variables
+init: <formula>      # formula describing initial positions of the game
+safe: <formula>      # formula describing moves of the safety player
+reach: <formula>     # formula describing moves of the reachability player```
 
-### Compositional recurrence analysis
+The init formula is defined over the variables that appear in `vars'.  The
+safe and reach formulas are defined over the variables in `vars' plus primed
+copies.  For example, if vars is x and y, then safe and reach are formulas
+over the vocabulary {x,y,x',y'}, and safe (reach) may move from (a,b) to
+(a',b') exactly when the the formula safe is satisfied by the assignment
+        { x -> a, y -> b, x' -> a', y' -> b' }.
 
-The `-cra` flags an invariant generation procedure for sequential programs.  The analysis is described in
-* Azadeh Farzan and Zachary Kincaid: [Compositional Recurrence Analysis](http://www.cs.princeton.edu/~zkincaid/pub/fmcad15.pdf).  FMCAD 2015.
-
-Typically, it is best to run CRA with `-cra-split-loops` and `-cra-forward-inv`.  Experimental non-linear invariant generation is available using `-cra-matrix`.
-
-The interprocedural variant is described in
-* Zachary Kincaid, Jason Breck, Ashkan Forouhi Boroujeni, Thomas Reps:  [Compositional Recurrence Analysis Revisited](http://www.cs.princeton.edu/~zkincaid/pub/pldi17.pdf). PLDI 2017.
-
-is available in the *Newton-ark2* branch of this repository.  Build instructions to come.
-
-Architecture
-============
-Duet is split into several packages:
-
-* apak
-
-  Algebraic program analysis kit.  This is a collection of utilities for implementing program analyzers.  It contains various graph algorithms (e.g., fixpoint computation, path expression algorithms) and utilities for constructing algebraic structures.
-
-* ark 
-
-  Arithmetic reasoning kit.  This is a high-level interface over Z3, MathSAT and Apron.  Most of the work of compositional recurrence analysis lives in ark.
-
-* pa
-
-  Predicate automata library.
-
-* duet
-
-  Implements program analyses, frontends, and anything programming-language specific.
+The syntax of formulas is as follows:
+```<formula> ::= <formula> && <formula> | <formula> || <formula>
+            | !(<formula>) | ( <formula> )
+            | <term> <= <term> | <term> < <term>
+            | <term> >= <term> | <term> > <term>
+            | <term> = <term>
+<term> ::= <int> | <var>
+         | <term> + <term> | <term> - <term>
+	 | <term> * <term> | <term> / <term>
+	 | ( term )```
