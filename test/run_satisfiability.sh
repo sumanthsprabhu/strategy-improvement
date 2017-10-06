@@ -22,7 +22,7 @@ run () {
     printf "%9s" $time
 }
 
-mkdir output
+mkdir -p output
 
 echo "Name           $ALCHEMIST$CVC4 SimSynth"
                                     

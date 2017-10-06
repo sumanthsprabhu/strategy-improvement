@@ -60,7 +60,7 @@ let synthesize_strategy filename =
           if Game.GameTree.well_labeled strategy then
             Format.printf "ok.@\n"
           else
-            Log.errorf "error!"
+            Format.printf "error!@\n"
         end
     end
   else if Filename.check_suffix filename "smt2" then
@@ -76,15 +76,16 @@ let synthesize_strategy filename =
           (Quantifier.pp_strategy ctx) strategy;
         if !validate then begin
           Format.printf "Validating strategy... ";
-          if Quantifier.check_strategy ctx qf_pre phi strategy then
-            Format.printf "ok.@\n"
-          else
-            Log.errorf "error!"
+          match Quantifier.check_strategy ctx qf_pre phi strategy with
+          | `Valid -> Format.printf "ok.@\n"
+          | `Invalid -> Format.printf "error!@\n"
+          | `Unknown -> Format.printf "inconclusive.@\n"
         end
 
       | `Unsat strategy ->
         Format.printf "Unsat player wins:@\n%a@\n"
           (Quantifier.pp_strategy ctx) strategy
+
       | `Unknown ->
         Format.printf "Could not find winning strategy!"
     end
