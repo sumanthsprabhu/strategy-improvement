@@ -71,7 +71,8 @@ Syntax of reachability games:
 ```vars: <var-list>     # comma-separated list of variables
 init: <formula>      # formula describing initial positions of the game
 safe: <formula>      # formula describing moves of the safety player
-reach: <formula>     # formula describing moves of the reachability player```
+reach: <formula>     # formula describing moves of the reachability player
+```
 
 The init formula is defined over the variables that appear in `vars'.  The
 safe and reach formulas are defined over the variables in `vars' plus primed
@@ -89,4 +90,5 @@ The syntax of formulas is as follows:
 <term> ::= <int> | <var>
          | <term> + <term> | <term> - <term>
 	 | <term> * <term> | <term> / <term>
-	 | ( term )```
+	 | ( term )
+```
