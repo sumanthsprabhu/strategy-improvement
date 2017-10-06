@@ -68,21 +68,23 @@ synthesize a strategy, execute simsat as follows:
 
 Syntax of reachability games:
 -----------------------------
-```vars: <var-list>     # comma-separated list of variables
+```
+vars: <var-list>     # comma-separated list of variables
 init: <formula>      # formula describing initial positions of the game
 safe: <formula>      # formula describing moves of the safety player
 reach: <formula>     # formula describing moves of the reachability player
 ```
 
-The init formula is defined over the variables that appear in `vars'.  The
-safe and reach formulas are defined over the variables in `vars' plus primed
+The init formula is defined over the variables that appear in 'vars'.  The
+safe and reach formulas are defined over the variables in 'vars' plus primed
 copies.  For example, if vars is x and y, then safe and reach are formulas
 over the vocabulary {x,y,x',y'}, and safe (reach) may move from (a,b) to
 (a',b') exactly when the the formula safe is satisfied by the assignment
         { x -> a, y -> b, x' -> a', y' -> b' }.
 
 The syntax of formulas is as follows:
-```<formula> ::= <formula> && <formula> | <formula> || <formula>
+```
+<formula> ::= <formula> && <formula> | <formula> || <formula>
             | !(<formula>) | ( <formula> )
             | <term> <= <term> | <term> < <term>
             | <term> >= <term> | <term> > <term>
