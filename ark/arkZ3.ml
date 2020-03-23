@@ -747,11 +747,9 @@ module CHC = struct
     | None -> assert false
 
   let to_string solver = Z3.Fixedpoint.to_string solver.fp
-
   (* adapted from pp_smtlib2 *)
   (* let pp_rules_synthlib1 ctx formatter relations solver = *)
-    
-    
+        
   let process_rules solver =
     List.iter (fun z3_rule -> Log.logf ~level:`always "%s" (Z3.Expr.to_string z3_rule)) (Z3.Fixedpoint.get_rules solver.fp)
                                          
