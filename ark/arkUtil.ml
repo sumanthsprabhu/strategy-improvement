@@ -62,7 +62,7 @@ let mk_show pp x =
   Format.fprintf formatter "@[<hov 0>%a@]@?" pp x;
   Buffer.sub b 0 (Buffer.length b)
 
-let default_sep formatter () = Format.fprintf formatter ",@ "
+let default_sep formatter () = Format.fprintf formatter ",@ " 
 let pp_print_enum_nobox ?(pp_sep=default_sep) pp_elt formatter enum =
   match BatEnum.get enum with
   | None   -> ()

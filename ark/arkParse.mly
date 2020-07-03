@@ -13,6 +13,9 @@ let pp_pos formatter pos =
 let symbol_of_string =
   Memo.memo (fun name -> Ctx.mk_symbol ~name `TyReal)
 
+let sygus_symbol_of_string =
+  Memo.memo (fun name -> try Syntax.get_named_symbol Ctx.context name
+			 with Not_found -> symbol_of_string name)
 %}
 
 %token EOF
@@ -28,6 +31,10 @@ let symbol_of_string =
 %token LBRACKET RBRACKET
 %token LBRACE RBRACE
 %token INIT SAFE REACH VARS
+%token SMT2NOT
+%token SAT UNSAT UNKNOWN
+%token INT BOOL
+%token DEFINE_FUN
 
 %left ADD
 %left MUL DIV
@@ -41,7 +48,8 @@ let symbol_of_string =
 %type <ArkAst.formula> smt2_formula
 %type <Syntax.symbol list * Syntax.symbol list * ArkAst.formula * ArkAst.formula * ArkAst.formula> game
 %start game
-
+/* %start sygus_output */
+/* %type <[`Sat | `Unsat | `Unknown] * (string * ArkAst.formula) list> sygus_output */
 %%
 
 math_opt_main:
@@ -86,13 +94,21 @@ smt2_formula:
 ;
 
 up_smt2_formula:
+  | SMT2NOT; phi = smt2_formula { Ctx.mk_not phi }
   | AND; conjuncts = list(smt2_formula) { Ctx.mk_and conjuncts }
   | OR; disjuncts = list(smt2_formula) { Ctx.mk_or disjuncts }
+  | GEQ; s = smt2_term; t = smt2_term { Ctx.mk_leq t s }
   | GT; s = smt2_term; t = smt2_term { Ctx.mk_lt t s }
+  | LEQ; s = smt2_term; t = smt2_term { Ctx.mk_leq s t }
+  | LT; s = smt2_term; t = smt2_term { Ctx.mk_lt s t }
+  | EQ; s = smt2_term; t = smt2_term { Ctx.mk_eq t s }
+
 ;
 
 smt2_term:
   | LPAREN; t = up_smt2_term; RPAREN { t }
+  |  v = ID { Ctx.mk_const (symbol_of_string v) } /* (symbol_of_string v) */
+  | k = REAL { Ctx.mk_real k }
 ;
 
 up_smt2_term:
@@ -158,3 +174,55 @@ game:
 	(List.map symbol_of_string vars, primed_vars, init, safe, reach)
       }
   ;
+
+/* sygus_formula: */
+/*   | LPAREN; phi = up_sygus_formula; RPAREN { phi } */
+/* ; */
+
+/* up_sygus_formula: */
+/*   | SMT2NOT; phi = sygus_formula { Ctx.mk_not phi } */
+/*   | AND; conjuncts = list(sygus_formula) { Ctx.mk_and conjuncts } */
+/*   | OR; disjuncts = list(sygus_formula) { Ctx.mk_or disjuncts } */
+/*   | GEQ; s = sygus_term; t = sygus_term { Ctx.mk_leq t s } */
+/*   | GT; s = sygus_term; t = sygus_term { Ctx.mk_lt t s } */
+/*   | LEQ; s = sygus_term; t = sygus_term { Ctx.mk_leq s t } */
+/*   | LT; s = sygus_term; t = sygus_term { Ctx.mk_lt s t } */
+/*   | EQ; s = sygus_term; t = sygus_term { Ctx.mk_eq t s } */
+
+/* ; */
+
+/* sygus_term: */
+/*   | LPAREN; t = up_sygus_term; RPAREN { t } */
+/*   |  v = ID { Syntax.mk_const Ctx.context (sygus_symbol_of_string v) } */
+/*   | k = REAL { Ctx.mk_real k } */
+/* ; */
+
+/* up_sygus_term: */
+/*   | ADD; ts = list(sygus_term) { Ctx.mk_add ts } */
+/*   | MUL; ts = list(sygus_term) { Ctx.mk_mul ts } */
+/*   | MINUS; t = sygus_term { Ctx.mk_neg t } */
+/*   | k = REAL { Ctx.mk_real k } */
+/* ; */
+
+/* sygus_sort: */
+/*   | INT {`TyReal} (*game has only real variables so add it as real *) */
+/*   | BOOL {`TyBool} */
+/* ; */
+
+/* sygus_sorted_var: */
+/*   | LPAREN; ID; argtype = sygus_sort; RPAREN; {argtype}  */
+/* ; */
+
+/* sygus_fun_spec: */
+/*   | LPAREN; DEFINE_FUN; fun_name = ID; LPAREN; args = list(sygus_sorted_var); RPAREN; ret = sygus_sort; spec = sygus_formula; RPAREN; */
+/* /\* {let  funtyp = `TyFun (args, ret) in (Ctx.mk_symbol ~name:fun_name funtyp, spec)} *\/ */
+/*     {(fun_name, spec)} */
+/* ; */
+
+/* sygus_output: */
+/*   | SAT; EOF {(`Sat, [])} */
+/*   | UNKNOWN; EOF {(`Unknown, [])} */
+/*   | UNSAT; fspec = list(sygus_fun_spec); EOF {(`Unsat, fspec)} */
+/* ; */
+
+

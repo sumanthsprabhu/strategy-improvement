@@ -1,8 +1,9 @@
 (* OASIS_START *)
-(* DO NOT EDIT (digest: 2fa5b86b6b494f8f7ed4e1f4e6dbcfff) *)
+(* DO NOT EDIT (digest: 2c271ab38c9b89fd534b5c2c19a5a8b5) *)
 
 Authors of SimSat:
 
 * Zachary Kincaid
+* Sumanth Prabhu S
 
 (* OASIS_STOP *)

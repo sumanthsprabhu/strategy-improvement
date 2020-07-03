@@ -42,10 +42,11 @@ and smt2token = parse
 | newline  { next_line lexbuf; smt2token lexbuf }
 | "and" { AND }
 | "or" { OR }
+| "not" { SMT2NOT }
 | "forall" { FORALL }
 | "exists" { EXISTS }
 | "<=" { LEQ }
-| ">=" { LEQ }
+| ">=" { GEQ }
 | "=" { EQ }
 | "<" { LT }
 | ">" { GT }
@@ -80,5 +81,31 @@ and game_token = parse
 | "reach:" { REACH }
 | "vars:" { VARS }
 | ['_' 'a'-'z' 'A'-'Z' '$' '?']['_' 'a'-'z' 'A'-'Z' '0'-'9''\'']* as lxm { ID(lxm) }
+| ['-']?['0'-'9']+['/']?['0'-'9']* as lxm { REAL(QQ.of_string lxm) }
+| eof { EOF }
+
+and sygus_output_token = parse
+| whitespace { sygus_output_token lexbuf }
+| newline  { next_line lexbuf; sygus_output_token lexbuf }
+| "define-fun" { DEFINE_FUN }
+| "sat" { SAT }
+| "unsat" { UNSAT }
+| "unknown" { UNKNOWN }
+| "Int" { INT }
+| "Bool" { BOOL }
+| "and" { AND }
+| "or" { OR }
+| "not" { SMT2NOT }
+| "<=" { LEQ }
+| ">=" { LEQ }
+| "=" { EQ }
+| "<" { LT }
+| ">" { GT }
+| "*" { MUL }
+| "+" { ADD }
+| "-" { MINUS }
+| "(" { LPAREN }
+| ")" { RPAREN }
+| ['_' 'a'-'z' 'A'-'Z' '$' '?']['_' 'a'-'z' 'A'-'Z' '0'-'9']* as lxm { ID(lxm) }
 | ['-']?['0'-'9']+['/']?['0'-'9']* as lxm { REAL(QQ.of_string lxm) }
 | eof { EOF }

@@ -14,7 +14,10 @@ module GameTree : sig
     reach:('a formula) ->
     'a t
   val well_labeled : 'a t -> bool
-  val expand_vertex : 'a t -> 'a vertex -> int -> bool
+  (* val expand_vertex : 'a t -> 'a vertex -> int -> bool *)
+  val expand_vertex : ArkAst.Ctx.t t -> ArkAst.Ctx.t vertex -> int -> bool
+  (* val expand_vertex : unit t -> unit vertex -> int -> bool                    *)
+
   val get_open : 'a t -> ('a vertex) option
   val root : 'a t -> 'a vertex
   val pp : Format.formatter -> 'a t -> unit
@@ -314,7 +317,7 @@ end = struct
     | None ->
       assert (refine = [])
 
-  (* adapted from simple_tree_interpolant_chc *)
+  (*SP: passes chcs to a sygus solver as specification*)
   let simple_tree_interpolant_sygus game_tree root children =
     let ark = game_tree.ark in
     let fo_typ_symbol sym =
@@ -324,47 +327,30 @@ end = struct
       | `TyBool -> `TyBool
       | _ -> assert false
     in
-    let pp_typ_fo formatter = function
-      | `TyReal -> Format.pp_print_string formatter "Int" (* TODO: time being *)
-      | `TyInt -> Format.pp_print_string formatter "Int"
-      | `TyBool -> Format.pp_print_string formatter "Bool"
+    let ftyp = `TyFun (List.map fo_typ_symbol game_tree.xs, `TyBool)
     in
-    let ftyp = `TyFun (List.map fo_typ_symbol game_tree.xs, `TyBool) in
-    Log.logf ~level:`always "(set-logic LIA)\n";
     let relations =
       List.map (fun _ ->
           let sym = mk_symbol ark ftyp in
-          Log.logf ~level:`always "(synth-fun %a ((%a)) %a @;"
-            (pp_symbol ark) sym
-            (ArkUtil.pp_print_enum pp_typ_fo) (BatList.enum (List.map fo_typ_symbol game_tree.xs))
-            pp_typ_fo `TyBool;
-          (* TODO: replace by dynamic grammar wrt variables and constants *)
-          Log.logf ~level:`always {whatever|
-                                   ((I Int (x y 0 1 -1
-                                   (+ I I) (- I I)
-                                   (ite Start I I)))
-                                   (Start Bool (true false (and Start Start) (or Start Start) (not Start)
-                                   (= I I) (<= I I) (>= I I))))
-                                   )
-                                   |whatever};
           sym)
         children
     in
+    let allVars = A.make 991 in
     let vars =
       BatList.mapi (fun i sym ->
-          mk_var ark i (fo_typ_symbol sym))
+          let result = mk_var ark i (fo_typ_symbol sym) in
+          A.add allVars result;
+          result)
         game_tree.xs
     in
     let fresh_var =
       let max_var = ref (List.length vars) in
       Memo.memo (fun sym ->
           incr max_var;
-          mk_var ark (!max_var) (fo_typ_symbol sym))
+          let result = mk_var ark (!max_var) (fo_typ_symbol sym) in
+          A.add allVars result;
+          result)          
     in
-    List.iter(fun var ->
-        Log.logf ~level:`always "(declare-var %a Int)\n"
-          (Formula.pp ark) var)
-      vars;
     let subst phi =
       let assoc = List.combine game_tree.xs vars in
       substitute_const
@@ -375,23 +361,40 @@ end = struct
             fresh_var sym)
         phi
     in
+    let constraints = A.make 256 in
     List.iter2 (fun child rel ->
         let hypothesis = subst child in
         let conclusion = mk_app ark rel vars in
-        Log.logf ~level:`always "%a" (pp_smtlib2 ark) hypothesis;
-        Log.logf ~level:`always "(constraint (=> (%a) (%a)))"
-          (Formula.pp ark) hypothesis
-          (Formula.pp ark) conclusion
+        A.add constraints (mk_implies ark hypothesis conclusion)
       )
       children
       relations;
-    Log.logf ~level:`always "(check-synth)\n"
-    (* let hypothesis =
-     *   let children = List.map (fun rel -> mk_app ark rel vars) relations in
-     *   mk_and ark ((subst root)::children)
-     * in *)
+    let hypothesis =
+      let children = List.map (fun rel -> mk_app ark rel vars) relations in
+      mk_and ark ((subst root)::children)
+    in
+    A.add constraints (mk_implies ark hypothesis (mk_false ark));
+    match Sygus.solve_cvc4 ark game_tree.xs (A.to_list allVars) relations (A.to_list constraints) with
+    | (`Sat, _) -> `Sat
+    | (`Unknown, _) -> `Unknown
+    | (`Unsat, specs) ->
+       let interp =
+         List.map (fun origspec ->
+             Log.logf ~level:`always "Original SyGuS solution: %a" (Formula.pp ark) origspec; (* SP *)
+             let l = substitute
+                       ark
+                       (mk_const ark % List.nth game_tree.xs)
+                       origspec in
+             Log.logf ~level:`always "After substitute solution: %a" (Formula.pp ark) l;
+             l)
+                  
+           specs
+       in
+       List.iter (fun l -> Log.logf ~level:`always "After substitute solution: %a" (Formula.pp ark) l) interp;
+       `Unsat interp
 
-  let simple_tree_interpolant_chc game_tree root children =
+  (* use freqn instead of z3 *)
+  let simple_tree_interpolant_freqn game_tree root children =
     let ark = game_tree.ark in
     let module CHC = ArkZ3.CHC in
     let solver = CHC.mk_solver (ArkZ3.mk_context ark []) in
@@ -402,30 +405,11 @@ end = struct
       | `TyBool -> `TyBool
       | _ -> assert false
     in
-    simple_tree_interpolant_sygus game_tree root children;
-    (* Log.logf ~level:`always "(set-logic LIA)\n"; *)
     let relations =
       let typ = `TyFun (List.map fo_typ_symbol game_tree.xs, `TyBool) in
       List.map (fun _ ->
           let sym = mk_symbol ark typ in
           CHC.register_relation solver sym;
-(*           let pp_typ_fo formatter = function
- *             | `TyReal -> Format.pp_print_string formatter "Int" (\* time being *\)
- *             | `TyInt -> Format.pp_print_string formatter "Int"
- *             | `TyBool -> Format.pp_print_string formatter "Bool"
- *           in
- *           Log.logf ~level:`always "(synth-fun %a (%a) %a @;"
- *             (pp_symbol ark) sym
- *             (ArkUtil.pp_print_enum pp_typ_fo) (BatList.enum (List.map fo_typ_symbol game_tree.xs))
- *             pp_typ_fo `TyBool;
- *           Log.logf ~level:`always {whatever|
- *     ((I Int (x y 0 1 -1
- *              (+ I I) (- I I)
- *              (ite Start I I)))
- *      (Start Bool (true false (and Start Start) (or Start Start) (not Start)
- *               (= I I) (<= I I) (>= I I))))
- * )
- * |whatever}; *)
           sym)
         children
     in
@@ -460,19 +444,90 @@ end = struct
       let children = List.map (fun rel -> mk_app ark rel vars) relations in
       mk_and ark ((subst root)::children)
     in
-    (* Log.logf ~level:`always "final hypo: %a\n" (Formula.pp ark) hypothesis; *)
+    CHC.add_rule solver hypothesis (mk_false ark);
+    Sygus.solve_freqn ark game_tree.xs (CHC.to_string solver)
+    
+        (* incr chc_file_number;
+         * let chcFileName = "/tmp/chc" ^ string_of_int !chc_file_number ^ ".smt2" in
+         * let chcFile = open_out_gen [Open_append; Open_creat] 0o666 chcFileName in
+         * let chcFileFormat = BatFormat.formatter_of_out_channel chcFile in
+         * Format.fprintf chcFileFormat "\n%s\n" (CHC.to_string solver);
+         * close_out chcFile; *)
+
+  let simple_tree_interpolant_chc game_tree root children =
+    let ark = game_tree.ark in
+    let module CHC = ArkZ3.CHC in
+    let solver = CHC.mk_solver (ArkZ3.mk_context ark []) in
+    let fo_typ_symbol sym =
+      match typ_symbol ark sym with
+      | `TyInt -> `TyInt
+      | `TyReal -> `TyReal
+      | `TyBool -> `TyBool
+      | _ -> assert false
+    in
+    let relations =
+      let typ = `TyFun (List.map fo_typ_symbol game_tree.xs, `TyBool) in
+      List.map (fun _ ->
+          let sym = mk_symbol ark typ in
+          CHC.register_relation solver sym;
+          sym)
+        children
+    in
+    let vars =
+      BatList.mapi (fun i sym ->
+          mk_var ark i (fo_typ_symbol sym))
+        game_tree.xs
+    in
+    let fresh_var =
+      let max_var = ref (List.length vars) in
+      Memo.memo (fun sym ->
+          incr max_var;
+          mk_var ark (!max_var) (fo_typ_symbol sym))
+    in
+    let subst phi =
+      let assoc = List.combine game_tree.xs vars in
+      substitute_const
+        ark
+        (fun sym ->
+           try List.assoc sym assoc
+           with Not_found ->
+             fresh_var sym)
+        phi
+    in
+    List.iter2 (fun child rel ->
+        let hypothesis = subst child in
+        let conclusion = mk_app ark rel vars in
+        CHC.add_rule solver hypothesis conclusion)
+      children
+      relations;
+    let hypothesis =
+      let children = List.map (fun rel -> mk_app ark rel vars) relations in
+      mk_and ark ((subst root)::children)
+    in
     CHC.add_rule solver hypothesis (mk_false ark);
     CHC.process_rules solver;
-    Log.logf ~level:`always "CHC:\n%s\n" (CHC.to_string solver); (* SP *)
+    (* incr chc_file_number;
+     * let chcFileName = "/tmp/chc" ^ string_of_int !chc_file_number ^ ".smt2" in
+     * let chcFile = open_out_gen [Open_append; Open_creat] 0o666 chcFileName in
+     * let chcFileFormat = BatFormat.formatter_of_out_channel chcFile in
+     * Format.fprintf chcFileFormat "\n%s\n" (CHC.to_string solver);
+     * close_out chcFile; *)
     match CHC.check solver [] with
     | `Sat ->
       let interp =
         List.map (fun rel ->
             Log.logf ~level:`always "CHC solution: %a" (Formula.pp ark) (CHC.get_solution solver rel); (* SP *)
-            substitute
-              ark
-              (mk_const ark % List.nth game_tree.xs)
-              (CHC.get_solution solver rel))
+            let l = substitute
+                      ark
+                      (mk_const ark  % List.nth game_tree.xs)
+                       (CHC.get_solution solver rel) in
+            Log.logf ~level:`always "After substitute solution: %a" (Formula.pp ark) l;
+            l)
+
+            (* substitute
+             *   ark
+             *   (mk_const ark % List.nth game_tree.xs)
+             *   (CHC.get_solution solver rel)) *)
         relations
       in
       `Unsat interp
@@ -710,7 +765,7 @@ end = struct
         | None -> game_tree.start
       in
       let interp =
-        simple_tree_interpolant_chc game_tree vertex_formula losing_branches
+        simple_tree_interpolant game_tree vertex_formula losing_branches
       in
       match interp with
       | `Sat -> assert false

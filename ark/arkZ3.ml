@@ -754,3 +754,4 @@ module CHC = struct
     List.iter (fun z3_rule -> Log.logf ~level:`always "%s" (Z3.Expr.to_string z3_rule)) (Z3.Fixedpoint.get_rules solver.fp)
                                          
 end
+                                  

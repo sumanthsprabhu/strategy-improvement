@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: 24b3477f7ebba8cceed4b00b41090287)
+# DO NOT EDIT (digest: b8371e6079ba318d2ff26d6f1b580fe1)
 # Ignore VCS directories, you can use the same kind of rule outside
 # OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
@@ -45,6 +45,10 @@ true: annot, bin_annot
 "ark/arkAst.cmx": for-pack(Ark)
 "ark/arkParse.cmx": for-pack(Ark)
 "ark/arkLex.cmx": for-pack(Ark)
+"ark/sygusToken.cmx": for-pack(Ark)
+"ark/sygusParse.cmx": for-pack(Ark)
+"ark/sygusLex.cmx": for-pack(Ark)
+"ark/sygus.cmx": for-pack(Ark)
 "ark/game.cmx": for-pack(Ark)
 <ark/*.ml{,i,y}>: pkg_ppx_deriving.show
 # Executable test_ark
@@ -120,3 +124,4 @@ true: annot, bin_annot
 <simsat/*.ml{,i,y}>: use_ark
 # OASIS_STOP
 true: use_menhir
+"ark/sygusParse.mly": sygus_external_token

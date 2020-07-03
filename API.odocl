@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: 7a3c5052e307a26e0274eecbcfa85fa5)
+# DO NOT EDIT (digest: 2c7f735bb22e360f7bb5340008b9a71d)
 ark/ArkUtil
 ark/Log
 ark/DisjointSet
@@ -29,5 +29,9 @@ ark/BigO
 ark/ArkAst
 ark/ArkParse
 ark/ArkLex
+ark/SygusToken
+ark/SygusParse
+ark/SygusLex
+ark/Sygus
 ark/Game
 # OASIS_STOP

@@ -49,6 +49,9 @@ val get_named_symbol : 'a context -> string -> symbol
     (non-named) symbols. *)
 val symbol_name : 'a context -> symbol -> string option
 
+(** Retrieve the name of a named symbol including unregistered (non-named) symbols **)
+val symbol_name_unr : 'a context -> symbol -> string
+                                                
 val pp_symbol : 'a context -> Format.formatter -> symbol -> unit
 
 val typ_symbol : 'a context -> symbol -> typ
@@ -285,10 +288,16 @@ val mk_implies : 'a context -> 'a formula -> 'a formula -> 'a formula
 
 val eliminate_ite : 'a context -> 'a formula -> 'a formula
 
+(** pretty print a symbol with valid smtlib2 names**)
+val pp_symbol_smtlib2 : 'a context -> Format.formatter -> symbol -> unit
+val pp_expr_smtlib2 : ?env:(string Env.t) -> 'a context ->
+    Format.formatter -> 'a formula -> unit
+
+                                                   
 (** Print a formula as a satisfiability query in SMTLIB2 format.  The query
     includes function declarations and (check-sat). *)
-val pp_smtlib2 : ?env:(string Env.t) -> 'a context ->
-    Format.formatter -> 'a formula -> unit
+(* val pp_smtlib2 : ?env:(string Env.t) -> 'a context ->
+ *     Format.formatter -> 'a formula -> unit *)
 
 module Formula : sig
   type 'a t = 'a formula
@@ -362,12 +371,13 @@ module type Context = sig
   val mk_true : formula
   val mk_false : formula
   val mk_ite : formula -> (t, 'a) expr -> (t, 'a) expr -> (t, 'a) expr
+                                                                                                          
 end
 
 module MakeContext () : Context
 
 (** Create a context which simplifies expressions on the fly *)
-module MakeSimplifyingContext () : Context
+module MakeSimplifyingContext () : Context 
 
 module Infix (C : sig
     type t

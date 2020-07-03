@@ -2,7 +2,8 @@ open OUnit
 open Quantifier
 open Syntax
 
-module Ctx = MakeSimplifyingContext ()
+(* module Ctx = MakeSimplifyingContext () *)
+module Ctx = ArkAst.Ctx
 module Infix = Syntax.Infix(Ctx)
 let ctx = Ctx.context
 let smt_ctx = ArkZ3.mk_context ctx []
