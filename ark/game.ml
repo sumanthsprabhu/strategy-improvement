@@ -202,6 +202,16 @@ end = struct
     | Expanded children -> List.iter delete children
     | _ -> assert false
 
+  let fo_typ_symbol ark sym =
+    match typ_symbol ark sym with
+    | `TyInt -> `TyInt
+    | `TyReal -> `TyReal
+    | `TyBool -> `TyBool
+    | _ -> assert false
+  let rec pp_prefix_matrix ark matrix = function          
+    | (`Forall, x)::xs -> mk_forall ark ~name:(show_symbol_smtlib2 ark x) (fo_typ_symbol ark x) (pp_prefix_matrix ark matrix xs)
+    | (`Exists, x)::xs -> mk_exists ark ~name:(show_symbol_smtlib2 ark x) (fo_typ_symbol ark x) (pp_prefix_matrix ark matrix xs)
+    | [] -> matrix                  
   let pp_prefix ark formatter prefix =
     let pp_elt formatter = function
       | (`Forall, x) -> Format.fprintf formatter "A %a" (pp_symbol ark) x
@@ -765,7 +775,7 @@ end = struct
         | None -> game_tree.start
       in
       let interp =
-        simple_tree_interpolant game_tree vertex_formula losing_branches
+        simple_tree_interpolant_freqn game_tree vertex_formula losing_branches
       in
       match interp with
       | `Sat -> assert false
@@ -846,15 +856,21 @@ end = struct
     in
     let path_to_root = path_to_root_formula game_tree vertex in
     let unrolled = unroll game_tree vertex_depth k in
-    logf ~level:`always "path_to_root in expand: %a" (Formula.pp ark) (mk_and ark path_to_root);
-    logf ~level:`always "unrolled in expand: %a" (Formula.pp ark) unrolled;
+    (* logf ~level:`always "path_to_root in expand: %a" (Formula.pp ark) (mk_and ark path_to_root);
+     * logf ~level:`always "unrolled in expand: %a" (Formula.pp ark) unrolled; *)
     let game_matrix =
       mk_implies ark (mk_and ark path_to_root) unrolled
       |> rewrite ark ~down:(nnf_rewriter ark)
     in
     let game_prefix = prefix 0 in
-    logf ~level:`always "game_prefix in expand: %a" (pp_prefix ark) game_prefix; (* SP *)
-    logf ~level:`always "game_matrix in expand: %a" (Formula.pp ark) game_matrix; (* SP *)
+    (* logf ~level:`always "game_prefix in expand: %a" (pp_prefix ark) game_prefix; (\* SP *\)
+     * logf ~level:`always "game_matrix in expand: %a" (pp_expr_smtlib2 ark) game_matrix; (\* SP *\) *)
+    (* let (tmpfn, tmpf) = Filename.open_temp_file "game_paths" ".smt2" in
+     * let tmpfo = Format.formatter_of_out_channel tmpf in
+     * Format.fprintf tmpfo "(assert %a)\n" (pp_expr_smtlib2 ark) (pp_prefix_matrix ark game_matrix game_prefix);
+     * Format.fprintf tmpfo "(check-sat)\n";
+     * Pervasives.close_out tmpf; *)
+    (* logf ~level:`always "game formula in expand: %a" ; (\* SP *\) *)
     match Quantifier.winning_skeleton ark game_prefix game_matrix with
     | `Sat skeleton ->
       let (x_map, skeleton) =

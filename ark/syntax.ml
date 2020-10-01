@@ -18,9 +18,9 @@ type symbol = int
   [@@deriving ord]
 
 let pp_typ_fo formatter = function
-  | `TyReal -> Format.pp_print_string formatter "real"
-  | `TyInt -> Format.pp_print_string formatter "int"
-  | `TyBool -> Format.pp_print_string formatter "bool"
+  | `TyReal -> Format.pp_print_string formatter "Real"
+  | `TyInt -> Format.pp_print_string formatter "Int"
+  | `TyBool -> Format.pp_print_string formatter "Bool"
 
 let pp_typ formatter = function
   | `TyInt -> pp_typ_fo formatter `TyInt
@@ -1064,10 +1064,10 @@ let valid_smtlib2_name name =
     in
     "|" ^ replaced ^ "|"
 
+let show_symbol_smtlib2 ctx symbol = valid_smtlib2_name (show_symbol ctx symbol)
+                                                        
 let pp_symbol_smtlib2 ctx formatter symbol =
-  Format.fprintf formatter "%s_%d"
-    (valid_smtlib2_name (fst (DynArray.get ctx.symbols symbol)))
-    symbol
+  Format.fprintf formatter "%s" (show_symbol_smtlib2 ctx symbol)
 
 (* let pp_var_smtlib2 ?(env=Env.empty) ctx formatter expr =
  *   let Node (label, children, _) = expr.obj in
@@ -1085,7 +1085,7 @@ let pp_expr_smtlib2 ?(env=Env.empty) ctx formatter expr =
   let strings = Hashtbl.create 991 in
   let symbol_name = Hashtbl.create 991 in
   Symbol.Set.iter (fun symbol ->
-      let name = valid_smtlib2_name (fst (DynArray.get ctx.symbols symbol)) ^ "_" ^ (string_of_int symbol) in
+      let name = (show_symbol_smtlib2 ctx symbol) in
       if Hashtbl.mem strings name then
         let rec go n =
           let name' = name ^ (string_of_int n) in

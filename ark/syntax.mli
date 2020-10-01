@@ -58,6 +58,8 @@ val typ_symbol : 'a context -> symbol -> typ
 
 val show_symbol : 'a context -> symbol -> string
 
+val show_symbol_smtlib2 : 'a context -> symbol -> string
+                                                    
 val int_of_symbol : symbol -> int
 
 val symbol_of_int : int -> symbol
